@@ -1,19 +1,49 @@
 import streamlit as st
 import pandas as pd
+import hmac
 
 st.set_page_config(layout="wide")
+
+# --- LOGIN SYSTEM ---
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if hmac.compare_digest(st.session_state["password"], st.secrets["password"]):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store the password
+        else:
+            st.session_state["password_correct"] = False
+
+    # Return True if the user has already validated their password
+    if st.session_state.get("password_correct", False):
+        return True
+
+    # Show input for password
+    st.text_input(
+        "Please enter the password to access the Pricing Tool", 
+        type="password", 
+        on_change=password_entered, 
+        key="password"
+    )
+    
+    if "password_correct" in st.session_state:
+        st.error("😕 Password incorrect")
+        
+    return False
+
+if not check_password():
+    st.stop()  # Do not run the rest of the app if password is wrong
+
+# --- APP BEGINS HERE (Only runs if password is correct) ---
 
 class PricingTool:
     def __init__(self, catalog_file):
         try:
-            # Load the file
             self.catalog = pd.read_csv(catalog_file)
-            
-            # Clean data: Fix typos (e.g., 'Monthy' -> 'Monthly')
             if 'Term' in self.catalog.columns:
                 self.catalog['Term'] = self.catalog['Term'].replace('Monthy', 'Monthly')
-
-            # Create a lookup dictionary
             self.prices = self.catalog.set_index('Product/Service')[['List Price', 'Term', 'Quote Name']].to_dict('index')
         except FileNotFoundError:
             st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is in your repository.")
@@ -27,7 +57,6 @@ class PricingTool:
         monthly_total = 0
         onetime_total = 0
 
-        # Iterate through items with an index 'i' so we can delete specific rows
         for i, item in enumerate(selected_items):
             prod_id = item['product']
             qty = item['qty']
@@ -38,14 +67,11 @@ class PricingTool:
                 term = data['Term']
                 quote_name = data['Quote Name']
 
-                # --- DISPLAY: ITEM NAME ---
                 st.write(f"**{quote_name}** (Qty: {qty})")
                 
-                # --- LAYOUT: PRICE BOX (Left) + DELETE BUTTON (Right) ---
                 c1, c2 = st.columns([5, 1]) 
                 
                 with c1:
-                    # Editable Price Box
                     unit_price = st.number_input(
                         "Unit Price", 
                         value=float(standard_price),
@@ -54,11 +80,9 @@ class PricingTool:
                     )
                 
                 with c2:
-                    # Trash Can Button
                     if st.button("🗑️", key=f"del_{i}", help="Remove this item"):
-                        selected_items.pop(i) # Remove item from list
-                        st.rerun() # Refresh page immediately
-                # -------------------------------------------------------
+                        selected_items.pop(i)
+                        st.rerun()
 
                 line_total = unit_price * qty
 
@@ -77,16 +101,13 @@ class PricingTool:
 
         return line_items, monthly_total, onetime_total
 
-# --- MAIN APP EXECUTION ---
 st.title("Bonafide Pricing Calculator")
 
-# Load Data
 tool = PricingTool('price_catalog.csv')
 
 if not tool.prices:
     st.stop()
 
-# --- SIDEBAR: INPUTS ---
 st.sidebar.header("Build Your Quote")
 
 if 'quote_items' not in st.session_state:
@@ -108,13 +129,10 @@ if st.sidebar.button("Clear Quote"):
     st.session_state['quote_items'] = []
     st.rerun()
 
-# --- MAIN PAGE: DISPLAY QUOTE ---
 items, monthly, one_time = tool.calculate_quote(st.session_state['quote_items'])
 
 if items:
     df = pd.DataFrame(items)
-    
-    # Format for display
     df_display = df.copy()
     df_display['Unit Price'] = df_display['Unit Price'].apply(lambda x: f"${x:,.2f}")
     df_display['Total Price'] = df_display['Total Price'].apply(lambda x: f"${x:,.2f}")
@@ -123,12 +141,9 @@ if items:
     st.dataframe(df_display, use_container_width=True)
 
     st.markdown("---")
-    
-    # Financial Metrics
     col1, col2, col3 = st.columns(3)
     col1.metric("Monthly Recurring", f"${monthly:,.2f}")
     col2.metric("One-Time Fees", f"${one_time:,.2f}")
     col3.metric("Total First Year", f"${(monthly * 12) + one_time:,.2f}")
-
 else:
     st.info("👈 Select products from the sidebar to start building a quote.")
