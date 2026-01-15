@@ -62,7 +62,7 @@ class PricingTool:
                     "Total Price": line_total
                 })
 
-        return line_items, monthly_total, onetime_total                    onetime_total += line_total
+        return line_items, monthly_total, onetime_total
                 
                 line_items.append({
                     "Product": quote_name,
