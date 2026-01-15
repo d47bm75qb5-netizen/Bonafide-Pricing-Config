@@ -20,29 +20,49 @@ class PricingTool:
             self.prices = {}
 
     def get_product_list(self):
-        return list(self.prices.keys())
-
-    def calculate_quote(self, selected_items):
+       def calculate_quote(self, selected_items):
         line_items = []
         monthly_total = 0
         onetime_total = 0
-        
-        for item in selected_items:
+
+        # We added 'enumerate' here to count the items (0, 1, 2...)
+        # This gives us a unique ID for every price box.
+        for i, item in enumerate(selected_items):
             prod_id = item['product']
             qty = item['qty']
-            
+
             if prod_id in self.prices:
                 data = self.prices[prod_id]
-                unit_price = data['List Price']
+                standard_price = data['List Price']
                 term = data['Term']
                 quote_name = data['Quote Name']
-                
+
+                # --- NEW: EDITABLE PRICE BOX ---
+                # This shows the product name and lets you change the price
+                st.write(f"**{quote_name}** (Qty: {qty})")
+                unit_price = st.number_input(
+                    "Edit Unit Price", 
+                    value=float(standard_price),
+                    key=f"price_{i}" # This unique key stops errors
+                )
+                # -------------------------------
+
                 line_total = unit_price * qty
-                
+
                 if term == 'Monthly':
                     monthly_total += line_total
                 elif term == 'One-time':
                     onetime_total += line_total
+
+                line_items.append({
+                    "Product": quote_name,
+                    "Term": term,
+                    "Qty": qty,
+                    "Unit Price": unit_price,
+                    "Total Price": line_total
+                })
+
+        return line_items, monthly_total, onetime_total                    onetime_total += line_total
                 
                 line_items.append({
                     "Product": quote_name,
