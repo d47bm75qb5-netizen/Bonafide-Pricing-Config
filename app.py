@@ -12,7 +12,7 @@ class PricingTool:
             # Clean data: Fix typos (e.g., 'Monthy' -> 'Monthly')
             if 'Term' in self.catalog.columns:
                 self.catalog['Term'] = self.catalog['Term'].replace('Monthy', 'Monthly')
-            
+
             # Create a lookup dictionary
             self.prices = self.catalog.set_index('Product/Service')[['List Price', 'Term', 'Quote Name']].to_dict('index')
         except FileNotFoundError:
@@ -20,7 +20,9 @@ class PricingTool:
             self.prices = {}
 
     def get_product_list(self):
-       def calculate_quote(self, selected_items):
+        return list(self.prices.keys())
+
+    def calculate_quote(self, selected_items):
         line_items = []
         monthly_total = 0
         onetime_total = 0
@@ -63,8 +65,6 @@ class PricingTool:
                 })
 
         return line_items, monthly_total, onetime_total
-                
-                
 
 st.title("Bonafide Pricing Calculator")
 
@@ -86,12 +86,12 @@ with st.sidebar.form("add_item_form"):
     qty_input = st.number_input("Quantity", min_value=1, value=1)
     add_btn = st.form_submit_button("Add to Quote")
 
-    if add_btn:
-        st.session_state['quote_items'].append({
-            'product': product_choice,
-            'qty': qty_input
-        })
-        st.success(f"Added {product_choice}")
+if add_btn:
+    st.session_state['quote_items'].append({
+        'product': product_choice,
+        'qty': qty_input
+    })
+    st.success(f"Added {product_choice}")
 
 if st.sidebar.button("Clear Quote"):
     st.session_state['quote_items'] = []
@@ -102,6 +102,7 @@ items, monthly, one_time = tool.calculate_quote(st.session_state['quote_items'])
 
 if items:
     df = pd.DataFrame(items)
+    
     # Format for display
     df_display = df.copy()
     df_display['Unit Price'] = df_display['Unit Price'].apply(lambda x: f"${x:,.2f}")
