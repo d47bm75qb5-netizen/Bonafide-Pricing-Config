@@ -1,0 +1,24 @@
+﻿Product/Service,Quote Name,Description,Unit,Term,List Price,Notes
+Active User Fee 1-25,Bonafide Core Database Fee – Active Users*,Bonafide Core Database Fee,Per User,Monthly,150,Floor $130
+Active User Fee 26-50,Bonafide Core Database Fee – Active Users*,Bonafide Core Database Fee,Per User,Monthly,135,Floor $125
+Active User Fee 51-100,Bonafide Core Database Fee – Active Users*,Bonafide Core Database Fee,Per User,Monthly,125,Floor $115
+Active User Fee 101-200,Bonafide Core Database Fee – Active Users*,Bonafide Core Database Fee,Per User,Monthly,110,Floor $100
+Active User Fee 201+,Bonafide Core Database Fee – Active Users*,Bonafide Core Database Fee,Per User,Monthly,110,Floor $95
+Read Replica Service Fee,Read Replica Service Fee,Read Replica Service Fee,Per Org,Monthy,500,
+Active Facility Portal Fee,Facility Portal – Active Facility Portals*  ,Facility Portal – Locations,Per Facility,Monthy,50,
+Patient Messaging for Texting,Twilio Services - Text Messaging,Third Party Subscriptions - Transactional Fees ,Per Text Message,Monthy,0.05,
+Patient Messaging for Emailing,Paubox Services - Sercure Emailing,Third Party Subscriptions - Transactional Fees ,Per Email,Monthy,0.1,
+Inovalon/Optum (Change Healthcare) – EDI Transaction Fee,Inovalon/Optum (Change Healthcare) – EDI Transaction Fee,Third Party Subscriptions - Transactional Fees ,Per Transaction,Monthy,0.2,
+Waystar – EDI Transaction Fee ,Waystar – EDI Transaction Fee ,Third Party Subscriptions - Transactional Fees ,Per Transaction,Monthy,0.3,
+Jopari Services – EDI Transaction – Worker’s Comp ,Jopari Services - EDI Transaction - Worker's Comp Fees (Includes 125 claims per month),Third Party Solution,Per 125 Claims,Monthy,30,
+Integrated E-Faxing  – Fax Lines,Integrated E-Faxing  – Fax Lines,Third Party Subscriptions - Transactional Fees ,Per Fax Line,Monthy,25,
+Integrated E-Faxing  – Pages,Integrated E-Faxing  – Pages,Third Party Subscriptions - Transactional Fees ,Per Page,Monthy,0.07,
+API - Toolkit and Support,API - Toolkit and Support,Professional Services,Per Org,One-time,2500,
+Database Instance - Read Replica Database,Database Instance - Read Replica Database,Professional Services,Per Org,One-time,2000,
+Integrated E-Faxing,Integrated E-Faxing,Professional Services,Per Org,One-time,250,
+Purchase Order Vendor Setup Fee,Purchase Order Vendor Setup Fee,Professional Services,Per Org,One-time,250,
+EDI Setup Fee - Jopari,EDI Setup Fee - Jopari,Professional Services,Per Org,One-time,250,
+EDI Setup Fee - Medicare,EDI Setup Fee - Medicare,Professional Services,Per Org,One-time,0,
+EDI Setup Fee - Inovalon,EDI Setup Fee - Inovalon,Professional Services,Per Org,One-time,250,
+Implementation and Training,Implementation and Training,,,,,
+,,,,,,
