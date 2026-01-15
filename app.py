@@ -64,15 +64,7 @@ class PricingTool:
 
         return line_items, monthly_total, onetime_total
                 
-                line_items.append({
-                    "Product": quote_name,
-                    "Term": term,
-                    "Qty": qty,
-                    "Unit Price": unit_price,
-                    "Total Price": line_total
-                })
-        
-        return line_items, monthly_total, onetime_total
+                
 
 st.title("Bonafide Pricing Calculator")
 
