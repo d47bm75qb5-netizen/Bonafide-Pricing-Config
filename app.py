@@ -6,7 +6,7 @@ st.set_page_config(layout="wide")
 class PricingTool:
     def __init__(self, catalog_file):
         try:
-            # This now matches your renamed desktop file
+            # Load the file
             self.catalog = pd.read_csv(catalog_file)
             
             # Clean data: Fix typos (e.g., 'Monthy' -> 'Monthly')
@@ -16,7 +16,7 @@ class PricingTool:
             # Create a lookup dictionary
             self.prices = self.catalog.set_index('Product/Service')[['List Price', 'Term', 'Quote Name']].to_dict('index')
         except FileNotFoundError:
-            st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is on your Desktop.")
+            st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is in your repository.")
             self.prices = {}
 
     def get_product_list(self):
@@ -27,8 +27,7 @@ class PricingTool:
         monthly_total = 0
         onetime_total = 0
 
-        # We added 'enumerate' here to count the items (0, 1, 2...)
-        # This gives us a unique ID for every price box.
+        # Iterate through items with an index 'i' so we can delete specific rows
         for i, item in enumerate(selected_items):
             prod_id = item['product']
             qty = item['qty']
@@ -39,15 +38,27 @@ class PricingTool:
                 term = data['Term']
                 quote_name = data['Quote Name']
 
-                # --- NEW: EDITABLE PRICE BOX ---
-                # This shows the product name and lets you change the price
+                # --- DISPLAY: ITEM NAME ---
                 st.write(f"**{quote_name}** (Qty: {qty})")
-                unit_price = st.number_input(
-                    "Edit Unit Price", 
-                    value=float(standard_price),
-                    key=f"price_{i}" # This unique key stops errors
-                )
-                # -------------------------------
+                
+                # --- LAYOUT: PRICE BOX (Left) + DELETE BUTTON (Right) ---
+                c1, c2 = st.columns([5, 1]) 
+                
+                with c1:
+                    # Editable Price Box
+                    unit_price = st.number_input(
+                        "Unit Price", 
+                        value=float(standard_price),
+                        key=f"price_{i}",
+                        label_visibility="collapsed"
+                    )
+                
+                with c2:
+                    # Trash Can Button
+                    if st.button("🗑️", key=f"del_{i}", help="Remove this item"):
+                        selected_items.pop(i) # Remove item from list
+                        st.rerun() # Refresh page immediately
+                # -------------------------------------------------------
 
                 line_total = unit_price * qty
 
@@ -66,10 +77,10 @@ class PricingTool:
 
         return line_items, monthly_total, onetime_total
 
+# --- MAIN APP EXECUTION ---
 st.title("Bonafide Pricing Calculator")
 
-# --- LOAD DATA ---
-# This matches the file you renamed on your desktop
+# Load Data
 tool = PricingTool('price_catalog.csv')
 
 if not tool.prices:
@@ -91,7 +102,7 @@ if add_btn:
         'product': product_choice,
         'qty': qty_input
     })
-    st.success(f"Added {product_choice}")
+    st.rerun()
 
 if st.sidebar.button("Clear Quote"):
     st.session_state['quote_items'] = []
@@ -108,10 +119,12 @@ if items:
     df_display['Unit Price'] = df_display['Unit Price'].apply(lambda x: f"${x:,.2f}")
     df_display['Total Price'] = df_display['Total Price'].apply(lambda x: f"${x:,.2f}")
 
-    st.subheader("Quote Details")
+    st.subheader("Quote Summary")
     st.dataframe(df_display, use_container_width=True)
 
     st.markdown("---")
+    
+    # Financial Metrics
     col1, col2, col3 = st.columns(3)
     col1.metric("Monthly Recurring", f"${monthly:,.2f}")
     col2.metric("One-Time Fees", f"${one_time:,.2f}")
