@@ -10,13 +10,13 @@ class PricingTool:
             
             # 1. Clean Data
             self.catalog = self.catalog.dropna(subset=['Product/Service'])
+            # Remove Implementation and Training if it exists
             self.catalog = self.catalog[self.catalog['Product/Service'] != 'Implementation and Training']
             
             if 'Term' in self.catalog.columns:
                 self.catalog['Term'] = self.catalog['Term'].replace('Monthy', 'Monthly')
             
             # 2. Create Lookup Dictionary
-            # We keep Quote Name just in case, but we will primarily use the key (Product/Service) for display now
             self.prices = self.catalog.set_index('Product/Service')[['List Price', 'Term', 'Quote Name']].to_dict('index')
         except FileNotFoundError:
             st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is in the repository.")
@@ -37,8 +37,7 @@ class PricingTool:
         elif product_name in self.prices:
             data = self.prices[product_name]
             return {
-                # --- FIX: Use 'product_name' (from dropdown) instead of generic 'Quote Name' ---
-                "Product": product_name, 
+                "Product": product_name, # Use the selected name from dropdown
                 "Term": data['Term'],
                 "Qty": float(qty),
                 "Unit Price": float(data['List Price'])
@@ -106,4 +105,29 @@ if st.session_state['quote_data']:
         num_rows="dynamic", # Allows adding/deleting rows
         column_config={
             "Unit Price": st.column_config.NumberColumn(format="$%.2f"),
-            "Total Price": st.column_config.NumberColumn(format="$%.2
+            "Total Price": st.column_config.NumberColumn(format="$%.2f", disabled=True), # Read-only
+            "Term": st.column_config.TextColumn(disabled=True),
+            "Product": st.column_config.TextColumn(disabled=True),
+        },
+        key="editor"
+    )
+
+    # --- SYNC CHANGES & CALCULATE TOTALS ---
+    # Update session state with changes from the editor (excluding the calculated total column)
+    if not edited_df.equals(df):
+        # We drop 'Total Price' before saving back to state so it recalculates correctly next time
+        st.session_state['quote_data'] = edited_df.drop(columns=['Total Price']).to_dict('records')
+        st.rerun()
+
+    # Calculate Totals for Metrics
+    monthly_total = edited_df[edited_df['Term'] == 'Monthly']['Total Price'].sum()
+    onetime_total = edited_df[edited_df['Term'] == 'One-time']['Total Price'].sum()
+
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Monthly Recurring", f"${monthly_total:,.2f}")
+    col2.metric("One-Time Fees", f"${onetime_total:,.2f}")
+    col3.metric("Total First Year", f"${(monthly_total * 12) + onetime_total:,.2f}")
+
+else:
+    st.info("👈 Select products or services from the sidebar to start building a quote.")
