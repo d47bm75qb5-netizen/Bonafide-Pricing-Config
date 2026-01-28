@@ -6,22 +6,16 @@ st.set_page_config(layout="wide")
 class PricingTool:
     def __init__(self, catalog_file):
         try:
-            # Load the file
             self.catalog = pd.read_csv(catalog_file)
             
-            # --- FILTERING LOGIC ---
-            # 1. Remove rows where Product/Service is empty (removes 'nan')
+            # 1. Clean Data
             self.catalog = self.catalog.dropna(subset=['Product/Service'])
-            
-            # 2. Remove "Implementation and Training" (if it exists in CSV)
             self.catalog = self.catalog[self.catalog['Product/Service'] != 'Implementation and Training']
-            # -----------------------
-
-            # Clean data: Fix typos (e.g., 'Monthy' -> 'Monthly')
+            
             if 'Term' in self.catalog.columns:
                 self.catalog['Term'] = self.catalog['Term'].replace('Monthy', 'Monthly')
             
-            # Create a lookup dictionary
+            # 2. Create Lookup Dictionary
             self.prices = self.catalog.set_index('Product/Service')[['List Price', 'Term', 'Quote Name']].to_dict('index')
         except FileNotFoundError:
             st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is in the repository.")
@@ -30,68 +24,38 @@ class PricingTool:
     def get_product_list(self):
         return list(self.prices.keys())
 
-    def calculate_quote(self, selected_items):
-        line_items = []
-        monthly_total = 0
-        onetime_total = 0
-        
-        for item in selected_items:
-            prod_id = item['product']
-            qty = item['qty']
-            
-            # --- LOGIC FOR STANDARD CSV PRODUCTS ---
-            if prod_id in self.prices:
-                data = self.prices[prod_id]
-                unit_price = data['List Price']
-                term = data['Term']
-                quote_name = data['Quote Name']
-                
-                line_total = unit_price * qty
-                
-                if term == 'Monthly':
-                    monthly_total += line_total
-                elif term == 'One-time':
-                    onetime_total += line_total
-                
-                line_items.append({
-                    "Product": quote_name,
-                    "Term": term,
-                    "Qty": qty,
-                    "Unit Price": unit_price,
-                    "Total Price": line_total
-                })
-            
-            # --- LOGIC FOR HOURLY SERVICES ($205/hr) ---
-            elif prod_id in ["Professional Services", "Migration"]:
-                unit_price = 205.00
-                term = "One-time"
-                # Here 'qty' represents Hours
-                line_total = unit_price * qty
-                
-                onetime_total += line_total
-                
-                line_items.append({
-                    "Product": prod_id,
-                    "Term": term,
-                    "Qty": f"{qty} hrs", # Display as hours
-                    "Unit Price": unit_price,
-                    "Total Price": line_total
-                })
-        
-        return line_items, monthly_total, onetime_total
+    # Helper to get default item details when adding to list
+    def get_item_details(self, product_name, qty=1, is_service=False):
+        if is_service:
+            return {
+                "Product": product_name,
+                "Term": "One-time",
+                "Qty": float(qty),
+                "Unit Price": 205.00
+            }
+        elif product_name in self.prices:
+            data = self.prices[product_name]
+            return {
+                "Product": data['Quote Name'],
+                "Term": data['Term'],
+                "Qty": float(qty),
+                "Unit Price": float(data['List Price'])
+            }
+        return None
 
 st.title("Bonafide Pricing Calculator")
 
 # --- LOAD DATA ---
 tool = PricingTool('price_catalog.csv')
 
-# --- SIDEBAR: INPUTS ---
+# --- INITIALIZE SESSION STATE ---
+if 'quote_data' not in st.session_state:
+    st.session_state['quote_data'] = []
+
+# --- SIDEBAR: ADD ITEMS ---
 st.sidebar.header("Build Your Quote")
 
-if 'quote_items' not in st.session_state:
-    st.session_state['quote_items'] = []
-
-# 1. STANDARD PRODUCT SELECTOR
+# 1. STANDARD PRODUCTS
 with st.sidebar.form("add_item_form"):
     st.markdown("### Standard Products")
     product_choice = st.selectbox("Select Product", tool.get_product_list())
@@ -99,14 +63,13 @@ with st.sidebar.form("add_item_form"):
     add_btn = st.form_submit_button("Add Product")
 
     if add_btn:
-        st.session_state['quote_items'].append({
-            'product': product_choice,
-            'qty': qty_input
-        })
-        st.success(f"Added {product_choice}")
+        new_item = tool.get_item_details(product_choice, qty_input)
+        if new_item:
+            st.session_state['quote_data'].append(new_item)
+            st.success(f"Added {product_choice}")
 
-# 2. NEW SERVICE SELECTOR (Professional Services & Migration)
-st.sidebar.markdown("---") # Divider line
+# 2. SERVICES
+st.sidebar.markdown("---")
 with st.sidebar.form("add_service_form"):
     st.markdown("### Add Hourly Services")
     service_choice = st.selectbox("Select Service", ["Professional Services", "Migration"])
@@ -114,42 +77,56 @@ with st.sidebar.form("add_service_form"):
     add_svc_btn = st.form_submit_button("Add Service Fee")
 
     if add_svc_btn:
-        st.session_state['quote_items'].append({
-            'product': service_choice,
-            'qty': hours_input
-        })
-        st.success(f"Added {service_choice} ({hours_input} hrs)")
+        new_item = tool.get_item_details(service_choice, hours_input, is_service=True)
+        if new_item:
+            st.session_state['quote_data'].append(new_item)
+            st.success(f"Added {service_choice}")
 
 if st.sidebar.button("Clear Quote"):
-    st.session_state['quote_items'] = []
+    st.session_state['quote_data'] = []
     st.rerun()
 
-# --- MAIN PAGE: DISPLAY QUOTE ---
-if tool.prices or st.session_state['quote_items']:
-    items, monthly, one_time = tool.calculate_quote(st.session_state['quote_items'])
+# --- MAIN PAGE: EDITABLE DATA TABLE ---
+if st.session_state['quote_data']:
+    st.subheader("Quote Details")
+    st.caption("📝 You can edit 'Qty' and 'Unit Price' directly in the table below. Select a row and press Delete to remove it.")
 
-    if items:
-        df = pd.DataFrame(items)
-        # Format for display
-        df_display = df.copy()
-        
-        # Helper to format currency safely
-        def format_currency(x):
-            return f"${x:,.2f}" if isinstance(x, (int, float)) else x
+    # Convert list to DataFrame
+    df = pd.DataFrame(st.session_state['quote_data'])
 
-        df_display['Unit Price'] = df_display['Unit Price'].apply(format_currency)
-        df_display['Total Price'] = df_display['Total Price'].apply(format_currency)
+    # Calculate Total Price (Dynamic)
+    df['Total Price'] = df['Qty'] * df['Unit Price']
 
-        st.subheader("Quote Details")
-        st.dataframe(df_display, use_container_width=True)
+    # Configure the Data Editor
+    edited_df = st.data_editor(
+        df,
+        use_container_width=True,
+        num_rows="dynamic", # Allows adding/deleting rows
+        column_config={
+            "Unit Price": st.column_config.NumberColumn(format="$%.2f"),
+            "Total Price": st.column_config.NumberColumn(format="$%.2f", disabled=True), # Read-only
+            "Term": st.column_config.TextColumn(disabled=True),
+            "Product": st.column_config.TextColumn(disabled=True),
+        },
+        key="editor"
+    )
 
-        st.markdown("---")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Monthly Recurring", f"${monthly:,.2f}")
-        col2.metric("One-Time Fees", f"${one_time:,.2f}")
-        col3.metric("Total First Year", f"${(monthly * 12) + one_time:,.2f}")
+    # --- SYNC CHANGES & CALCULATE TOTALS ---
+    # Update session state with changes from the editor (excluding the calculated total column)
+    if not edited_df.equals(df):
+        # We drop 'Total Price' before saving back to state, so it recalculates correctly next time
+        st.session_state['quote_data'] = edited_df.drop(columns=['Total Price']).to_dict('records')
+        st.rerun()
 
-    else:
-        st.info("👈 Select products or services from the sidebar to start building a quote.")
+    # Calculate Totals for Metrics
+    monthly_total = edited_df[edited_df['Term'] == 'Monthly']['Total Price'].sum()
+    onetime_total = edited_df[edited_df['Term'] == 'One-time']['Total Price'].sum()
+
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Monthly Recurring", f"${monthly_total:,.2f}")
+    col2.metric("One-Time Fees", f"${onetime_total:,.2f}")
+    col3.metric("Total First Year", f"${(monthly_total * 12) + onetime_total:,.2f}")
+
 else:
-    st.stop()
+    st.info("👈 Select products or services from the sidebar to start building a quote.")
