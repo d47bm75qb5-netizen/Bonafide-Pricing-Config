@@ -6,16 +6,16 @@ st.set_page_config(layout="wide")
 class PricingTool:
     def __init__(self, catalog_file):
         try:
-            # This now matches your renamed desktop file
+            # Load the file
             self.catalog = pd.read_csv(catalog_file)
             
-            # --- UPDATED SECTION: FILTERING DATA ---
+            # --- FILTERING LOGIC ---
             # 1. Remove rows where Product/Service is empty (removes 'nan')
             self.catalog = self.catalog.dropna(subset=['Product/Service'])
             
-            # 2. Remove the specific "Implementation and Training" row
+            # 2. Remove "Implementation and Training"
             self.catalog = self.catalog[self.catalog['Product/Service'] != 'Implementation and Training']
-            # ---------------------------------------
+            # -----------------------
 
             # Clean data: Fix typos (e.g., 'Monthy' -> 'Monthly')
             if 'Term' in self.catalog.columns:
@@ -24,7 +24,7 @@ class PricingTool:
             # Create a lookup dictionary
             self.prices = self.catalog.set_index('Product/Service')[['List Price', 'Term', 'Quote Name']].to_dict('index')
         except FileNotFoundError:
-            st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is on your Desktop.")
+            st.error(f"Could not find file: {catalog_file}. Please make sure 'price_catalog.csv' is in the repository.")
             self.prices = {}
 
     def get_product_list(self):
@@ -49,32 +49,4 @@ class PricingTool:
                 
                 if term == 'Monthly':
                     monthly_total += line_total
-                elif term == 'One-time':
-                    onetime_total += line_total
-                
-                line_items.append({
-                    "Product": quote_name,
-                    "Term": term,
-                    "Qty": qty,
-                    "Unit Price": unit_price,
-                    "Total Price": line_total
-                })
-        
-        return line_items, monthly_total, onetime_total
-
-st.title("Bonafide Pricing Calculator")
-
-# --- LOAD DATA ---
-# This matches the file you renamed on your desktop
-tool = PricingTool('price_catalog.csv')
-
-if not tool.prices:
-    st.stop()
-
-# --- SIDEBAR: INPUTS ---
-st.sidebar.header("Build Your Quote")
-
-if 'quote_items' not in st.session_state:
-    st.session_state['quote_items'] = []
-
-with st
+                elif term == 'One
